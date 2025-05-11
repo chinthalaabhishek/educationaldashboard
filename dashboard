@@ -1,0 +1,20 @@
+ui <- dashboardPage(
+  dashboardHeader(title = "Enhanced Student Dashboard"),
+  dashboardSidebar(
+    sidebarMenu(
+      menuItem("Overview", tabName = "overview", icon = icon("dashboard")),
+      menuItem("Add Student", tabName = "add_student", icon = icon("user-plus")),
+      menuItem("Update/Delete Student", tabName = "update_delete", icon = icon("edit")),
+      menuItem("Performance Analysis", tabName = "performance", icon = icon("chart-bar")),
+      menuItem("Student Data", tabName = "data", icon = icon("table"))
+    )
+  ),
+  dashboardBody(
+    tabItems(
+      # Overview Tab
+      tabItem(tabName = "overview",
+              fluidRow(
+                box(title = "Total Students", width = 4, status = "info", textOutput("total_students")),
+                box(title = "Average GPA", width = 4, status = "primary", textOutput("avg_gpa")),
+                box(title = "Pass Percentage", width = 4, status = "success", textOutput("pass_percentage"))
+              )
