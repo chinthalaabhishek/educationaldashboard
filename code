@@ -1,0 +1,137 @@
+library(shiny)
+library(shinydashboard)
+library(ggplot2)
+library(RSQLite)
+library(readr)
+library(writexl)
+library(dplyr)
+
+# Connect to SQLite and ensure table exists
+conn <- dbConnect(SQLite(), "enhanced_student_database.db")
+dbExecute(conn, "
+  CREATE TABLE IF NOT EXISTS student_details (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    age INTEGER,
+    gender TEXT,
+    college TEXT,
+    branch TEXT,
+    gpa REAL,
+    pass TEXT,
+    internship TEXT,
+    projects TEXT,
+    contact TEXT,
+    email TEXT,
+    address TEXT,
+    tenth_percentage REAL,
+    inter_percentage REAL
+  )
+")
+dbDisconnect(conn)
+
+# Define UI layout
+ui <- dashboardPage(
+  dashboardHeader(title = "Enhanced Student Dashboard"),
+  dashboardSidebar(
+    sidebarMenu(
+      menuItem("Overview", tabName = "overview", icon = icon("dashboard")),
+      menuItem("Add Student", tabName = "add_student", icon = icon("user-plus")),
+      menuItem("Update/Delete Student", tabName = "update_delete", icon = icon("edit")),
+      menuItem("Performance Analysis", tabName = "performance", icon = icon("chart-bar")),
+      menuItem("Student Data", tabName = "data", icon = icon("table"))
+    )
+  ),
+  dashboardBody(
+    tabItems(
+      # Overview Tab
+      tabItem(tabName = "overview",
+              fluidRow(
+                box(title = "Total Students", width = 4, status = "info", textOutput("total_students")),
+                box(title = "Average GPA", width = 4, status = "primary", textOutput("avg_gpa")),
+                box(title = "Pass Percentage", width = 4, status = "success", textOutput("pass_percentage"))
+              )
+      ),
+      # Add Student Tab
+      tabItem(tabName = "add_student",
+              fluidRow(
+                box(title = "Add New Student", width = 6, solidHeader = TRUE, status = "primary",
+                    textInput("name", "Name"),
+                    numericInput("age", "Age", value = 18, min = 10, max = 100),
+                    selectInput("gender", "Gender", choices = c("Male", "Female", "Other")),
+                    textInput("college", "College"),
+                    selectInput("branch", "Branch", choices = c("CSE", "DS", "IT", "ECE", "EEE", "MECH", "Other")),
+                    numericInput("gpa", "GPA", min = 0, max = 10, value = 5),
+                    selectInput("pass", "Pass/Fail", choices = c("Pass", "Fail")),
+                    textInput("internship", "Internship"),
+                    textInput("projects", "Project"),
+                    textInput("contact", "Contact"),
+                    textInput("email", "Email"),
+                    textAreaInput("address", "Address"),
+                    numericInput("tenth_percentage", "10th Percentage", min = 0, max = 100, value = 50),
+                    numericInput("inter_percentage", "Inter Percentage", min = 0, max = 100, value = 50),
+                    actionButton("add", "Add Student", icon = icon("plus"))
+                )
+              )
+      ),
+      # Update/Delete Student Tab
+      tabItem(tabName = "update_delete",
+              fluidRow(
+                box(title = "Update or Delete Student", width = 6, solidHeader = TRUE, status = "warning",
+                    numericInput("student_id", "Student ID", value = 1, min = 1),
+                    textInput("update_name", "New Name"),
+                    numericInput("update_age", "New Age", value = 18, min = 10, max = 100),
+                    selectInput("update_gender", "New Gender", choices = c("Male", "Female", "Other")),
+                    textInput("update_college", "New College"),
+                    selectInput("update_branch", "New Branch", choices = c("CSE", "DS", "IT", "ECE", "EEE", "MECH", "Other")),
+                    numericInput("update_gpa", "New GPA", min = 0, max = 10, value = 5),
+                    selectInput("update_pass", "New Pass/Fail", choices = c("Pass", "Fail")),
+                    textInput("update_internship", "New Internship"),
+                    textInput("update_projects", "New Project"),
+                    textInput("update_contact", "New Contact"),
+                    textInput("update_email", "New Email"),
+                    textAreaInput("update_address", "New Address"),
+                    numericInput("update_tenth_percentage", "New 10th Percentage", min = 0, max = 100, value = 50),
+                    numericInput("update_inter_percentage", "New Inter Percentage", min = 0, max = 100, value = 50),
+                    actionButton("update", "Update Student", icon = icon("refresh")),
+                    actionButton("delete", "Delete Student", icon = icon("trash"))
+                )
+              )
+      ),
+      # Performance Analysis Tab
+      tabItem(tabName = "performance",
+              fluidRow(
+                box(title = "GPA Distribution", width = 6, plotOutput("gpaPlot")),
+                box(title = "Pass Rate by Branch", width = 6, plotOutput("branchPlot")),
+                box(title = "Internships Count", width = 6, plotOutput("internshipPlot")),
+                box(title = "Top Projects", width = 6, plotOutput("projectPlot"))
+              )
+      ),
+      # Student Data Tab
+      tabItem(tabName = "data",
+              fluidRow(
+                box(title = "Student Details", width = 12, tableOutput("student_data_table"))
+              )
+      )
+    )
+  )
+)
+
+# Define server logic
+server <- function(input, output, session) {
+  get_data <- reactive({
+    conn <- dbConnect(SQLite(), "enhanced_student_database.db")
+    data <- dbGetQuery(conn, "SELECT * FROM student_details")
+    dbDisconnect(conn)
+    return(data)
+  })
+  
+  output$gpaPlot <- renderPlot({ ggplot(get_data(), aes(x = gpa)) + geom_histogram(binwidth = 0.5, fill = "steelblue", color = "black") })
+  output$branchPlot <- renderPlot({ ggplot(get_data() %>% group_by(branch) %>% summarise(pass_rate = mean(pass == "Pass") * 100), aes(x = branch, y = pass_rate, fill = branch)) + geom_bar(stat = "identity") })
+  output$internshipPlot <- renderPlot({ ggplot(get_data(), aes(x = internship)) + geom_bar(fill = "purple") })
+  output$projectPlot <- renderPlot({ ggplot(get_data(), aes(x = projects)) + geom_bar(fill = "orange") })
+  output$student_data_table <- renderTable({ get_data() })
+}
+
+# Run the app
+shinyApp(ui, server)
+
